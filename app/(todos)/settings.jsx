@@ -15,6 +15,7 @@ const Settings = () => {
 	const [isNotificationEnabled, setIsNotificationEnabled] = useState(true);
 
 	const settingsStyles = createSettingsStyles(colors);
+
 	return (
 		<LinearGradient
 			colors={colors.gradients.background}

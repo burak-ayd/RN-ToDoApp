@@ -4,15 +4,18 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import useTheme from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
+import { useFocusEffect } from 'expo-router';
 import {
 	Alert,
 	FlatList,
+	Modal,
 	StatusBar,
 	Text,
 	TextInput,
 	TouchableOpacity,
+	TouchableWithoutFeedback,
 	View,
 } from "react-native";
 import { RectButton } from 'react-native-gesture-handler';
@@ -27,6 +30,9 @@ export default function Index() {
 	const [error, setError] = useState(null);
 	const [editingId, setEditingId] = useState(null);
 	const [editText, setEditText] = useState("");
+	const [swipeableOpenedId, setSwipeableOpenedId] = useState(null);
+	const [modalVisible, setModalVisible] = useState(false);
+	const swipeableRefs = useRef({});
 
 	const homeStyles = createHomeStyles(colors);
 
@@ -48,9 +54,35 @@ export default function Index() {
 		fetchTodos();
 	}, []);
 
+	const closeAllSwipeables = () => {
+		Object.keys(swipeableRefs.current).forEach(id => {
+			if (swipeableRefs.current[id]) {
+				swipeableRefs.current[id].close();
+			}
+		});
+	};
+
 	useEffect(() => {
-		console.log("Hata2: ", error);
-	}, [error]);
+		// Close all other Swipeables when a new one is opened
+		if (swipeableOpenedId) {
+			Object.keys(swipeableRefs.current).forEach(id => {
+				const numId = parseInt(id);
+				if (numId !== swipeableOpenedId && swipeableRefs.current[id]) {
+					swipeableRefs.current[id].close();
+				}
+			});
+		}
+	}, [swipeableOpenedId]);
+
+	useFocusEffect(
+		
+		React.useCallback(() => {
+			return () => {
+				// This runs when the screen loses focus (navigating away)
+				setSwipeableOpenedId(null);
+			};
+		}, [])
+	);
 
 	if (isLoading) return <LoadingSpinner />;
 	// if (error) return <Headers title={`Error: ${error}`} />;
@@ -110,8 +142,9 @@ export default function Index() {
 	};
 
 	const handleEditTodo = (todo) => {
-		setEditText(todo.text);
+		setEditText(todo.title);
 		setEditingId(todo.id);
+		setModalVisible(true);
 	};
 
 	const handleSaveEdit = async () => {
@@ -128,6 +161,7 @@ export default function Index() {
 				if (!response.ok) throw new Error("Failed to update todo");
 				setEditingId(null);
 				setEditText("");
+				setModalVisible(false);
 				await fetchTodos();
 			} catch (error) {
 				console.log("Error updating todo", error);
@@ -139,6 +173,8 @@ export default function Index() {
 	const handleCancelEdit = () => {
 		setEditingId(null);
 		setEditText("");
+		setModalVisible(false);
+		setSwipeableOpenedId(null);
 	};
 
 	const renderLeftActions = (item) => (
@@ -152,8 +188,7 @@ export default function Index() {
 			<RectButton
 				onPress={() => {
 					console.log('Edit button pressed for item:', item.id);
-					setEditingId(item.id);
-					setEditText(item.title); // 'text' yerine 'title' olmalı
+					handleEditTodo(item);
 				}}
 				activeOpacity={0.85}
 				style={{
@@ -252,14 +287,17 @@ export default function Index() {
 		</View>
 	);
 
+
 	const renderTodoItem = ({ item }) => {
 		const isEditing = editingId === item.id;
 		return (
-			<View style={homeStyles.todoItemWrapper}>
-
+			<View style={homeStyles.todoItemWrapper} onTouchStart={() => closeAllSwipeables()}>
 				<Swipeable
+					ref={ref => swipeableRefs.current[item.id] = ref}
+					key={item.id}
 					renderRightActions={() => renderRightActions(item)}
 					renderLeftActions={() => renderLeftActions(item)}
+					
 					containerStyle={{
 						margin: 0,
 						padding: 0,
@@ -273,8 +311,14 @@ export default function Index() {
 					overshootRight={false}
 					overshootLeft={false}
 					enabled={true}
-					onSwipeableWillOpen={() => console.log('Swipe opened')}
-					onSwipeableClose={() => console.log('Swipe closed')}
+					onSwipeableWillOpen={() => {
+						// console.log('Swipe opened for item:', item.id);
+						setSwipeableOpenedId(item.id);
+					}}
+					onSwipeableWillClose={() => {
+						// console.log('Swipe closed for item:', item.id);
+						setSwipeableOpenedId(null);
+					}}
 				>
 					<LinearGradient
 						colors={colors.gradients.surface}
@@ -312,58 +356,6 @@ export default function Index() {
 							</LinearGradient>
 						</TouchableOpacity>
 
-						{isEditing ? (
-							<View style={homeStyles.editContainer}>
-								<TextInput
-									style={homeStyles.editInput}
-									value={editText}
-									onChangeText={setEditText}
-									autoFocus
-									multiline
-									placeholder="Edit your todo..."
-									placeholderTextColor={colors.textMuted}
-								/>
-								<View style={homeStyles.editButtons}>
-									<TouchableOpacity
-										onPress={handleSaveEdit}
-										activeOpacity={0.8}
-									>
-										<LinearGradient
-											colors={colors.gradients.success}
-											style={homeStyles.editButton}
-										>
-											<Ionicons
-												name="checkmark"
-												size={16}
-												color="#fff"
-											/>
-											<Text style={homeStyles.editButtonText}>
-												Save
-											</Text>
-										</LinearGradient>
-									</TouchableOpacity>
-
-									<TouchableOpacity
-										onPress={handleCancelEdit}
-										activeOpacity={0.8}
-									>
-										<LinearGradient
-											colors={colors.gradients.muted}
-											style={homeStyles.editButton}
-										>
-											<Ionicons
-												name="close"
-												size={16}
-												color="#fff"
-											/>
-											<Text style={homeStyles.editButtonText}>
-												Cancel
-											</Text>
-										</LinearGradient>
-									</TouchableOpacity>
-								</View>
-							</View>
-						) : (
 							<View style={homeStyles.todoTextContainer}>
 								<Text
 									style={[
@@ -380,33 +372,148 @@ export default function Index() {
 
 
 							</View>
-						)}
 					</LinearGradient>
 				</Swipeable>
 			</View>
 		);
-	};
-	return (
 
-		<LinearGradient
-			colors={colors.gradients.background}
-			style={homeStyles.container}
-		>
-			<StatusBar barStyle={colors.statusBarStyle} />
-			<SafeAreaView style={homeStyles.safeArea}>
-				{/* HEADER */}
-				<Headers refresh={fetchTodos} />
-				{/* TODO LIST */}
-				<FlatList
-					data={todos}
-					renderItem={renderTodoItem}
-					keyExtractor={(item) => item.id}
-					style={homeStyles.todoList}
-					contentContainerStyle={homeStyles.todoListContent}
-				// ListEmptyComponent={<EmptyState />}
-				// showsVerticalScrollIndicator={false}
-				/>
-			</SafeAreaView>
-		</LinearGradient>
+	}
+
+
+	return (
+		<>
+			<Modal
+				animationType="slide"
+				transparent={true}
+				visible={modalVisible}
+				onRequestClose={() => setModalVisible(false)}
+			>
+				<View style={{
+					flex: 1,
+					justifyContent: 'center',
+					alignItems: 'center',
+					backgroundColor: 'rgba(0,0,0,0.5)',
+				}}>
+					<View style={{
+						width: '80%',
+						backgroundColor: colors.surface,
+						borderRadius: 20,
+						padding: 20,
+						elevation: 5,
+						shadowColor: '#000',
+						shadowOffset: { width: 0, height: 2 },
+						shadowOpacity: 0.25,
+						shadowRadius: 4,
+					}}>
+						<Text style={{
+							fontSize: 18,
+							fontWeight: 'bold',
+							marginBottom: 15,
+							color: colors.text,
+						}}>
+							Edit Todo
+						</Text>
+						<TextInput
+							style={{
+								borderWidth: 1,
+								borderColor: colors.border,
+								borderRadius: 8,
+								padding: 10,
+								fontSize: 16,
+								color: colors.text,
+								backgroundColor: colors.background,
+								marginBottom: 20,
+								minHeight: 100,
+								textAlignVertical: 'top',
+							}}
+							value={editText}
+							onChangeText={setEditText}
+							autoFocus
+							multiline
+							placeholder="Edit your todo..."
+							placeholderTextColor={colors.textMuted}
+						/>
+						<View style={{
+							flexDirection: 'row',
+							justifyContent: 'space-between',
+						}}>
+							<TouchableOpacity
+								onPress={handleCancelEdit}
+								style={{
+									flex: 1,
+									marginRight: 10,
+								}}
+							>
+								<LinearGradient
+									colors={colors.gradients.muted}
+									style={{
+										padding: 12,
+										borderRadius: 8,
+										alignItems: 'center',
+									}}
+								>
+									<Text style={{
+										color: '#fff',
+										fontSize: 16,
+										fontWeight: 'bold',
+									}}>
+										Cancel
+									</Text>
+								</LinearGradient>
+							</TouchableOpacity>
+							<TouchableOpacity
+								onPress={handleSaveEdit}
+								style={{
+									flex: 1,
+									marginLeft: 10,
+								}}
+							>
+								<LinearGradient
+									colors={colors.gradients.success}
+									style={{
+										padding: 12,
+										borderRadius: 8,
+										alignItems: 'center',
+									}}
+								>
+									<Text style={{
+										color: '#fff',
+										fontSize: 16,
+										fontWeight: 'bold',
+									}}>
+										Save
+									</Text>
+								</LinearGradient>
+							</TouchableOpacity>
+						</View>
+					</View>
+				</View>
+			</Modal>
+			<TouchableWithoutFeedback onPress={() => {
+			// console.log('Screen tapped (outside items)');
+			// closeAllSwipeables();
+		}} style={{ flex: 1 }}>
+			<LinearGradient
+				colors={colors.gradients.background}
+				style={homeStyles.container}
+			>
+					<StatusBar barStyle={colors.statusBarStyle} />
+					<SafeAreaView style={homeStyles.safeArea}>
+						{/* HEADER */}
+						<Headers refresh={fetchTodos} />
+						{/* TODO LIST */}
+						<FlatList
+							data={todos}
+							renderItem={renderTodoItem}
+							keyExtractor={(item) => item.id}
+							style={homeStyles.todoList}
+							contentContainerStyle={homeStyles.todoListContent}
+						// ListEmptyComponent={<EmptyState />}
+						// showsVerticalScrollIndicator={false}
+						/>
+					</SafeAreaView>
+				</LinearGradient>
+			</TouchableWithoutFeedback>
+		</>
 	);
 }
