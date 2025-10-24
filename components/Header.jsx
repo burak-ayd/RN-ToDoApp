@@ -4,9 +4,9 @@ import useTheme from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 
 import { LinearGradient } from "expo-linear-gradient";
-import { Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
-const Header = () => {
+const Header = ({ refresh }) => {
 	const { colors } = useTheme();
 
 	const homeStyles = createHomeStyles(colors);
@@ -26,7 +26,9 @@ const Header = () => {
 				<LinearGradient
 					colors={colors.gradients.primary}
 					style={homeStyles.iconContainer}>
-					<Ionicons name="flash-outline" size={28} color="#fff" />
+					<TouchableOpacity onPress={refresh}>
+						<Ionicons name="refresh" size={28} color="#fff" />
+					</TouchableOpacity>
 				</LinearGradient>
 
 				<View style={homeStyles.titleTextContainer}>

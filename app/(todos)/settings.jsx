@@ -6,7 +6,7 @@ import useTheme from "@/hooks/useTheme";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import React, { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { ScrollView, StatusBar, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const Settings = () => {
@@ -19,6 +19,7 @@ const Settings = () => {
 		<LinearGradient
 			colors={colors.gradients.background}
 			style={settingsStyles.container}>
+			<StatusBar barStyle={colors.statusBarStyle} />
 			<SafeAreaView style={settingsStyles.safeArea}>
 				{/* HEADER */}
 				<View style={settingsStyles.header}>
